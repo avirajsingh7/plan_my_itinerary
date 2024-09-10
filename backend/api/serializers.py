@@ -40,7 +40,7 @@ class ItineraryRequestSerializer(serializers.Serializer):
 class LocationDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = LocationDetails
-        fields = ['location_id', 'name', 'street1', 'city', 'state', 'country', 'postalcode', 'address_string', 'latitude', 'longitude', 'ranking_string', 'rating']
+        fields = ['id', 'name', 'street1', 'city', 'state', 'country', 'postalcode', 'address_string', 'latitude', 'longitude', 'ranking', 'rating']
 
 
 class ImageSerializer(serializers.ModelSerializer):
@@ -51,15 +51,15 @@ class ImageSerializer(serializers.ModelSerializer):
 
 class ActivitySerializer(serializers.ModelSerializer):
     place_details = LocationDetailsSerializer(source='location', read_only=True)
-    place_images = ImageSerializer(source='location.images', many=True, read_only=True)
+    place_images = ImageSerializer(source='location.image_set', many=True, read_only=True)
 
     class Meta:
         model = Activity
-        fields = ['day_number', 'time_of_day', 'place_name', 'duration', 'description', 'tourist_place', 'place_details', 'place_images']
+        fields = ['day', 'time_of_day', 'duration', 'description', 'place_details', 'place_images']
 
 
 class ItinerarySerializer(serializers.ModelSerializer):
-    activities = ActivitySerializer(many=True, read_only=True)
+    activities = ActivitySerializer(source='activity_set', many=True, read_only=True)
 
     class Meta:
         model = Itinerary
