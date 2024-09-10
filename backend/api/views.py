@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from django.db import transaction
 from django.db.utils import IntegrityError
 
-from .serializers import UserSerializer, ItinerarySerializer, ItineraryRequestSerializer
+from .serializers import UserSerializer, ItinerarySerializer, ItineraryRequestSerializer, ImageSerializer
 from .models import EmailVerificationToken, Itinerary, LocationDetails, Activity, Image
 from .services import EmailService, gemini_client, trip_advisor_client
 
@@ -63,9 +63,9 @@ class VerifyEmailView(APIView):
             user.is_active = True
             user.save()
             verification_token.delete()
-            return Response({"detail": "Email successfully verified."}, status=status.HTTP_200_OK)
+            return Response({"message": "Email successfully verified."}, status=status.HTTP_200_OK)
         except EmailVerificationToken.DoesNotExist:
-            return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
 class GenerateItineraryView(APIView):
     @transaction.atomic
@@ -108,7 +108,7 @@ class GenerateItineraryView(APIView):
             if place_id:
                 location = self._get_or_create_location(place_id)
                 self._create_activity(itinerary, activity, location)
-                self._fetch_and_save_images(location, place_id)
+                self._fetch_and_save_images(place_id)
 
     def _get_or_create_location(self, place_id):
         location, created = LocationDetails.objects.get_or_create(id=place_id)
@@ -129,15 +129,17 @@ class GenerateItineraryView(APIView):
             day=activity_data['day_number'],
             time_of_day=activity_data['time_of_day']
         )
+        
+    def _fetch_and_save_images(self, place_id):
 
-    def _fetch_and_save_images(self, location, place_id):
-        if not Image.objects.filter(location=location).exists():
+        if not Image.objects.filter(location_id=place_id).exists():
             images = trip_advisor_client.get_place_images(place_id)
             if images:
-                Image.objects.bulk_create([
-                    Image(location=location, **image_data)
-                    for image_data in images
-                ])
+                serializer = ImageSerializer(data=images, many=True)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    raise Exception(serializer.errors)
 
     def _create_response(self, itinerary):
         itinerary_serializer = ItinerarySerializer(itinerary)
