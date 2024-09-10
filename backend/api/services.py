@@ -114,14 +114,23 @@ class TripAdvisorAPIClient:
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json().get('data', [])
-            return [self._parse_image(image) for image in data]
+            return [self._parse_image(image,place_id) for image in data]
         except requests.RequestException as e:
             print(f"Error in TripAdvisor image request: {str(e)}")
         return None
-
+    
     @staticmethod
-    def _parse_image(image):
-        return {size: image['images'].get(size) for size in ['thumbnail', 'small', 'medium', 'large', 'original']}
+    def _parse_image(image,place_id):
+        parsed_image = {}
+        
+        for size in ['thumbnail', 'small', 'medium', 'large', 'original']:
+            if size in image['images'] and image['images'][size] is not None:
+                parsed_image[size] = image['images'][size].get('url')
+            else:
+                parsed_image[size] = None
+            parsed_image['location'] = place_id
+
+        return parsed_image
 
 
 class EmailService:

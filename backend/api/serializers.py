@@ -46,7 +46,7 @@ class LocationDetailsSerializer(serializers.ModelSerializer):
 class ImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Image
-        fields = ['thumbnail', 'small', 'medium', 'large', 'original']
+        fields = ['location','thumbnail', 'small', 'medium', 'large', 'original']
 
 
 class ActivitySerializer(serializers.ModelSerializer):
