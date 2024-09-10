@@ -17,56 +17,55 @@ class ItineraryBuilder:
         self.destination = destination
         self.num_of_days = num_of_days
         self.must_includes = must_includes
-
+        
     def generate_itinerary(self):
         places_to_visit = self.get_places_to_visit()
-        itinerary = {'trip': {}}
+        itinerary = []
         
-        for day, day_data in places_to_visit['trip'].items():
-            itinerary['trip'][day] = {}
-            for time_of_day, place_data in day_data.items():
-                place_name = place_data['place_name']
-                place_id = self.get_tourist_place_id(place_name)
-                
-                if place_id:
-                    place_details = self.get_tourist_place_details(place_id)
-                    place_images = self.get_tourist_place_images(place_id)
-                else:
-                    place_details = None
-                    place_images = None
-                
-                enriched_place_data = {
-                    **place_data,
-                    'details': place_details,
-                    'images': place_images
-                }
-                
-                itinerary['trip'][day][time_of_day] = enriched_place_data
+        for activity in places_to_visit['itinerary']:
+            place_name = activity['place_name']
+            place_id = self.get_tourist_place_id(place_name)
+            
+            if place_id:
+                place_details = self.get_tourist_place_details(place_id)
+                place_images = self.get_tourist_place_images(place_id)
+            else:
+                place_details = None
+                place_images = None
+            
+            enriched_activity = {
+                **activity,
+                'place_details': place_details,
+                'place_images': place_images
+            }
+            
+            itinerary.append(enriched_activity)
 
-        return itinerary
+        return {'data': itinerary}
 
     def get_places_to_visit(self):
         must_includes = " ".join(self.must_includes)
         
-        prompt = f"""Provide a JSON response listing top tourist places around {self.destination} for a {self.num_of_days}-day trip. 
+        prompt = f"""
+        Provide a JSON response listing top tourist places around {self.destination} for a {self.num_of_days}-day trip. 
         For each place, include the recommended duration to spend there and a 60-word description about the place. 
-        Create an itinerary based on this, which may include {must_includes}. 
-        Ensure no extra text outside of the JSON format. 
-        The JSON format should be structured as follows:
+        Create an itinerary based on this, ensuring it includes {must_includes} if applicable. 
+        Ensure no extra text outside of the JSON format. The JSON format should be structured as follows:
 
         {{
-        "trip": {{
-            "day_n": {{
-            "morning/afternoon/evening": {{
+        "itinerary": [
+            {{
+                "day_number": "integer representing the day number",
+                "time_of_day": "morning/afternoon/evening",
                 "place_name": "name of the place",
                 "duration": "time to spend at the place",
-                "description": "60-word description of the place"
-                "tourist_place": "If it is a tourist place, then true else false"
+                "description": "60-word description of the place",
+                "tourist_place": true/false
             }}
-            }}
-        }}
+        ]
         }}
         """
+
 
         base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
         request_body = {
@@ -120,14 +119,13 @@ class ItineraryBuilder:
         params = {
             "key": TRIPADVISOR_API_KEY,
         }
-
         details_response = requests.get(trip_adv_details_url, params=params)
         
         if details_response.status_code == 200:
             data = details_response.json()
             
             location_id = data.get('location_id', None)
-            address_obj = data.get('address_obj', None)
+            address_obj = data.get('address_obj', {})
             latitude = data.get('latitude', None)
             longitude = data.get('longitude', None)
             ranking_string = data.get('ranking_data', {}).get('ranking_string', None)
@@ -135,7 +133,15 @@ class ItineraryBuilder:
 
             return {
                 "location_id": location_id,
-                "address_obj": address_obj,
+                "address_obj": {
+                    "street1": address_obj.get('street1', None),
+                    "street2": address_obj.get('street2', None),
+                    "city": address_obj.get('city', None),
+                    "state": address_obj.get('state', None),
+                    "country": address_obj.get('country', None),
+                    "postalcode": address_obj.get('postalcode', None),
+                    "address_string": address_obj.get('address_string', None)
+                },
                 "latitude": latitude,
                 "longitude": longitude,
                 "ranking_string": ranking_string,
