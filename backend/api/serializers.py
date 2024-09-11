@@ -56,7 +56,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 class ItinerarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Itinerary
-        fields = ['user', 'start_date', 'end_date', 'total_days']
+        fields = ['user', 'start_date', 'end_date', 'total_days','destination','image_url','name']
 
 class ActivityResponseSerializer(serializers.ModelSerializer):
     place_details = LocationDetailsSerializer(source='location', read_only=True)
@@ -72,4 +72,4 @@ class ItineraryResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Itinerary
-        fields = ['id', 'user', 'start_date', 'end_date', 'total_days', 'createdAt', 'activities']
+        fields = ['id', 'user', 'start_date', 'end_date','destination','image_url','name', 'total_days', 'createdAt', 'activities']
