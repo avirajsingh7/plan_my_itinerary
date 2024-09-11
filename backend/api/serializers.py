@@ -51,7 +51,7 @@ class ImageSerializer(serializers.ModelSerializer):
 class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Activity
-        fields = ['itinerary', 'day', 'time_of_day', 'duration', 'description','location']
+        fields = ['name','itinerary', 'day', 'time_of_day', 'duration', 'description','location']
 
 class ItinerarySerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,7 +64,7 @@ class ActivityResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Activity
-        fields = ['itinerary','day', 'time_of_day', 'duration', 'description', 'place_details','place_images']
+        fields = ['name','itinerary','day', 'time_of_day', 'duration', 'description', 'place_details','place_images']
 
 
 class ItineraryResponseSerializer(serializers.ModelSerializer):
