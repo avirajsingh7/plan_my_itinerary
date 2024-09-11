@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import User, Itinerary, Activity, LocationDetails, Image
+from collections import defaultdict
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -68,8 +69,25 @@ class ActivityResponseSerializer(serializers.ModelSerializer):
 
 
 class ItineraryResponseSerializer(serializers.ModelSerializer):
-    activities = ActivityResponseSerializer(source='activity_set', many=True, read_only=True)
+    activities_by_day = serializers.SerializerMethodField()
 
     class Meta:
         model = Itinerary
-        fields = ['id', 'user', 'start_date', 'end_date','destination','image_url','name', 'total_days', 'createdAt', 'activities']
+        fields = ['id', 'user', 'start_date', 'end_date', 'destination', 'image_url', 'name', 'total_days', 'createdAt', 'activities_by_day']
+
+    def get_activities_by_day(self, obj):
+        # Group activities by day
+        activities = Activity.objects.filter(itinerary=obj)
+        grouped_activities = defaultdict(list)
+
+        for activity in activities:
+            day = int(activity.day)
+            grouped_activities[day].append(ActivityResponseSerializer(activity).data)
+
+        return grouped_activities
+
+    def to_representation(self, instance):
+
+        representation = super().to_representation(instance)
+        representation['activities'] = self.get_activities_by_day(instance)
+        return representation
