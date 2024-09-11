@@ -1,5 +1,5 @@
-from django.urls import path, include
-from .views import CreateUserView, VerifyEmailView, GenerateItineraryView, RecentItinerariesView, UserProfileView
+from django.urls import path
+from .views import CreateUserView, VerifyEmailView, GenerateItineraryView, RecentItinerariesView, UserProfileView, ItineraryDetailView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -11,4 +11,5 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="refresh"),
     path("itinerary/generate/", GenerateItineraryView.as_view(), name="generate_itinerary"),
     path("itinerary/recent/", RecentItinerariesView.as_view(), name="recent_itineraries"),
+    path("itinerary/<int:itinerary_id>/", ItineraryDetailView.as_view(), name="itinerary_detail"),
 ]

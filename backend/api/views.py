@@ -14,6 +14,7 @@ from .serializers import (
 from .models import EmailVerificationToken, Itinerary, LocationDetails, Image
 from .services import email_service, gemini_client, trip_advisor_client
 
+
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -70,6 +71,7 @@ class VerifyEmailView(APIView):
         except EmailVerificationToken.DoesNotExist:
             return Response({"message": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class GenerateItineraryView(APIView):
     @transaction.atomic
     def post(self, request):
@@ -101,7 +103,15 @@ class GenerateItineraryView(APIView):
             'user': user.id,
             'start_date': validated_data['start_date'],
             'end_date': validated_data['end_date'],
-            'total_days': validated_data['num_of_days']
+            'total_days': validated_data['num_of_days'],
+            'destination': validated_data['destination'],
+            'image_url': None,
+            'name': (
+                validated_data['destination'].split(',')[0] +
+                ' Itinerary for ' +
+                str(validated_data['num_of_days']) +
+                ' days'
+            )
         }
         serializer = ItinerarySerializer(data=itinerary_data)
         if serializer.is_valid():
@@ -115,7 +125,10 @@ class GenerateItineraryView(APIView):
             if place_id:
                 location = self._get_or_create_location(place_id)
                 self._create_activity(itinerary, activity, place_id)
-                self._fetch_and_save_images(place_id)
+                images = self._fetch_and_save_images(place_id)
+                if images and not itinerary.image_url:
+                    itinerary.image_url = images[0].get('original')
+                    itinerary.save()
 
     def _get_or_create_location(self, place_id):
         try:
@@ -147,14 +160,18 @@ class GenerateItineraryView(APIView):
             raise Exception(serializer.errors)
 
     def _fetch_and_save_images(self, place_id):
-        if not Image.objects.filter(location_id=place_id).exists():
+        try:
+            return Image.objects.get(location_id=place_id)
+        except Image.DoesNotExist:
             images = trip_advisor_client.get_place_images(place_id)
             if images:
                 serializer = ImageSerializer(data=images, many=True)
                 if serializer.is_valid():
                     serializer.save()
+                    return images
                 else:
                     raise Exception(serializer.errors)
+        return None
 
     def _create_response(self, itinerary):
         itinerary_serializer = ItineraryResponseSerializer(itinerary)
@@ -176,11 +193,26 @@ class RecentItinerariesView(APIView):
                 return Response({"error": f"Invalid value for 'num_of_itinerary': {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
             recent_itineraries = Itinerary.objects.filter(user=request.user).order_by('-createdAt')[:num_of_itinerary]
-            serializer = ItineraryResponseSerializer(recent_itineraries, many=True)
+            serializer = ItinerarySerializer(recent_itineraries, many=True)
 
             return Response({
                 "message": f"Retrieved {len(serializer.data)} recent itineraries",
                 "data": serializer.data
             }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"message": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ItineraryDetailView(APIView):
+    def get(self, request, itinerary_id):
+        try:
+            itinerary = Itinerary.objects.get(id=itinerary_id)
+            serializer = ItineraryResponseSerializer(itinerary)
+            return Response({
+                "message": "Itinerary details retrieved successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Itinerary.DoesNotExist:
+            return Response({"message": "Itinerary not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"message": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
