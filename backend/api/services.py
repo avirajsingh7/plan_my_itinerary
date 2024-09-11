@@ -158,6 +158,8 @@ class EmailService:
         except smtplib.SMTPException as e:
             print(f"Failed to send verification email to {email_to}: {str(e)}")
             return False
-
+        
+        
+email_service = EmailService()
 gemini_client = GeminiAPIClient(settings.GEMINI_API_KEY)
 trip_advisor_client = TripAdvisorAPIClient(settings.TRIPADVISOR_API_KEY)

@@ -8,10 +8,11 @@ from django.db.utils import IntegrityError
 
 from .serializers import (
     UserSerializer, ItinerarySerializer, ItineraryRequestSerializer,
-    ImageSerializer, ActivitySerializer, LocationDetailsSerializer
+    ImageSerializer, ActivitySerializer, LocationDetailsSerializer,
+    ItineraryResponseSerializer
 )
-from .models import EmailVerificationToken, Itinerary, LocationDetails, Image, Activity
-from .services import EmailService, gemini_client, trip_advisor_client
+from .models import EmailVerificationToken, Itinerary, LocationDetails, Image
+from .services import email_service, gemini_client, trip_advisor_client
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -28,7 +29,7 @@ class CreateUserView(generics.CreateAPIView):
             token = EmailVerificationToken.objects.create(user=user)
             
             # Send verification email
-            EmailService.send_verification_email(user.email, token.token)
+            email_service.send_verification_email(user.email, token.token)
             
             headers = self.get_success_headers(serializer.data)
             response_data = {
@@ -96,19 +97,24 @@ class GenerateItineraryView(APIView):
         )
 
     def _create_itinerary(self, user, validated_data):
-        return Itinerary.objects.create(
-            user=user,
-            start_date=validated_data['start_date'],
-            end_date=validated_data['end_date'],
-            total_days=validated_data['num_of_days']
-        )
+        itinerary_data = {
+            'user': user.id,
+            'start_date': validated_data['start_date'],
+            'end_date': validated_data['end_date'],
+            'total_days': validated_data['num_of_days']
+        }
+        serializer = ItinerarySerializer(data=itinerary_data)
+        if serializer.is_valid():
+            return serializer.save()
+        else:
+            raise Exception(serializer.errors)
 
     def _process_activities(self, itinerary, itinerary_data, destination):
         for activity in itinerary_data['itinerary']:
             place_id = trip_advisor_client.get_tourist_place_id(activity['place_name'], destination)
             if place_id:
                 location = self._get_or_create_location(place_id)
-                self._create_activity(itinerary, activity, location)
+                self._create_activity(itinerary, activity, place_id)
                 self._fetch_and_save_images(place_id)
 
     def _get_or_create_location(self, place_id):
@@ -125,16 +131,21 @@ class GenerateItineraryView(APIView):
             else:
                 raise Exception(f"Could not fetch details for place_id: {place_id}")
 
-    def _create_activity(self, itinerary, activity_data, location):
-        Activity.objects.create(
-            itinerary=itinerary,
-            description=activity_data['description'],
-            location=location,
-            duration=activity_data['duration'],
-            day=activity_data['day_number'],
-            time_of_day=activity_data['time_of_day']
-        )
-        
+    def _create_activity(self, itinerary, activity_data, place_id):
+        activity_data = {
+            'itinerary': itinerary.id,
+            'description': activity_data['description'],
+            'location': place_id,
+            'duration': activity_data['duration'],
+            'day': activity_data['day_number'],
+            'time_of_day': activity_data['time_of_day']
+        }
+        serializer = ActivitySerializer(data=activity_data)
+        if serializer.is_valid():
+            return serializer.save()
+        else:
+            raise Exception(serializer.errors)
+
     def _fetch_and_save_images(self, place_id):
         if not Image.objects.filter(location_id=place_id).exists():
             images = trip_advisor_client.get_place_images(place_id)
@@ -146,7 +157,7 @@ class GenerateItineraryView(APIView):
                     raise Exception(serializer.errors)
 
     def _create_response(self, itinerary):
-        itinerary_serializer = ItinerarySerializer(itinerary)
+        itinerary_serializer = ItineraryResponseSerializer(itinerary)
         return Response({
             "message": "Itinerary created and saved successfully!",
             "data": itinerary_serializer.data
@@ -165,7 +176,7 @@ class RecentItinerariesView(APIView):
                 return Response({"error": f"Invalid value for 'num_of_itinerary': {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
             recent_itineraries = Itinerary.objects.filter(user=request.user).order_by('-createdAt')[:num_of_itinerary]
-            serializer = ItinerarySerializer(recent_itineraries, many=True)
+            serializer = ItineraryResponseSerializer(recent_itineraries, many=True)
 
             return Response({
                 "message": f"Retrieved {len(serializer.data)} recent itineraries",
