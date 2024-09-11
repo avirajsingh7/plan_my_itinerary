@@ -92,19 +92,20 @@ class TripAdvisorAPIClient:
     def _parse_place_details(data):
         address_obj = data.get('address_obj', {})
         return {
-            "location_id": data.get('location_id'),
+            "id": data.get('location_id'),
             "name": data.get('name'),
-            "street1": address_obj.get('street1'),
-            "street2": address_obj.get('street2'),
-            "city": address_obj.get('city'),
-            "state": address_obj.get('state'),
-            "country": address_obj.get('country'),
-            "postalcode": address_obj.get('postalcode'),
-            "address_string": address_obj.get('address_string'),
-            "latitude": data.get('latitude'),
-            "longitude": data.get('longitude'),
-            "ranking_string": data.get('ranking_data'),
-            "rating": data.get('rating'),
+            "street1": address_obj.get('street1',None),
+            "street2": address_obj.get('street2',None),
+            "city": address_obj.get('city',None),
+            "state": address_obj.get('state',None),
+            "country": address_obj.get('country',None),
+            "postalcode": address_obj.get('postalcode',None),
+            "address_string": address_obj.get('address_string',None),
+            "latitude": data.get('latitude',None),
+            "longitude": data.get('longitude',None),
+            "ranking": (data.get('ranking_data', {}).get('ranking_string')
+                               if data.get('ranking_data') else None),
+            "rating": data.get('rating',None),
         }
 
     def get_place_images(self, place_id):
@@ -114,14 +115,23 @@ class TripAdvisorAPIClient:
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json().get('data', [])
-            return [self._parse_image(image) for image in data]
+            return [self._parse_image(image,place_id) for image in data]
         except requests.RequestException as e:
             print(f"Error in TripAdvisor image request: {str(e)}")
         return None
-
+    
     @staticmethod
-    def _parse_image(image):
-        return {size: image['images'].get(size) for size in ['thumbnail', 'small', 'medium', 'large', 'original']}
+    def _parse_image(image,place_id):
+        parsed_image = {}
+        
+        for size in ['thumbnail', 'small', 'medium', 'large', 'original']:
+            if size in image['images'] and image['images'][size] is not None:
+                parsed_image[size] = image['images'][size].get('url')
+            else:
+                parsed_image[size] = None
+            parsed_image['location'] = place_id
+
+        return parsed_image
 
 
 class EmailService:
@@ -148,6 +158,8 @@ class EmailService:
         except smtplib.SMTPException as e:
             print(f"Failed to send verification email to {email_to}: {str(e)}")
             return False
-
+        
+        
+email_service = EmailService()
 gemini_client = GeminiAPIClient(settings.GEMINI_API_KEY)
 trip_advisor_client = TripAdvisorAPIClient(settings.TRIPADVISOR_API_KEY)
