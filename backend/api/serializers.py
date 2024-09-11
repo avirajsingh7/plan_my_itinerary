@@ -48,8 +48,17 @@ class ImageSerializer(serializers.ModelSerializer):
         model = Image
         fields = ['location','thumbnail', 'small', 'medium', 'large', 'original']
 
-
 class ActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Activity
+        fields = ['itinerary', 'day', 'time_of_day', 'duration', 'description','location']
+
+class ItinerarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Itinerary
+        fields = ['user', 'start_date', 'end_date', 'total_days']
+
+class ActivityResponseSerializer(serializers.ModelSerializer):
     place_details = LocationDetailsSerializer(source='location', read_only=True)
     place_images = ImageSerializer(source='location.image_set', many=True, read_only=True)
 
@@ -58,8 +67,8 @@ class ActivitySerializer(serializers.ModelSerializer):
         fields = ['itinerary','day', 'time_of_day', 'duration', 'description', 'place_details','place_images']
 
 
-class ItinerarySerializer(serializers.ModelSerializer):
-    activities = ActivitySerializer(source='activity_set', many=True, read_only=True)
+class ItineraryResponseSerializer(serializers.ModelSerializer):
+    activities = ActivityResponseSerializer(source='activity_set', many=True, read_only=True)
 
     class Meta:
         model = Itinerary
