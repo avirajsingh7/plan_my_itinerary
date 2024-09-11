@@ -92,19 +92,20 @@ class TripAdvisorAPIClient:
     def _parse_place_details(data):
         address_obj = data.get('address_obj', {})
         return {
-            "location_id": data.get('location_id'),
+            "id": data.get('location_id'),
             "name": data.get('name'),
-            "street1": address_obj.get('street1'),
-            "street2": address_obj.get('street2'),
-            "city": address_obj.get('city'),
-            "state": address_obj.get('state'),
-            "country": address_obj.get('country'),
-            "postalcode": address_obj.get('postalcode'),
-            "address_string": address_obj.get('address_string'),
-            "latitude": data.get('latitude'),
-            "longitude": data.get('longitude'),
-            "ranking_string": data.get('ranking_data'),
-            "rating": data.get('rating'),
+            "street1": address_obj.get('street1',None),
+            "street2": address_obj.get('street2',None),
+            "city": address_obj.get('city',None),
+            "state": address_obj.get('state',None),
+            "country": address_obj.get('country',None),
+            "postalcode": address_obj.get('postalcode',None),
+            "address_string": address_obj.get('address_string',None),
+            "latitude": data.get('latitude',None),
+            "longitude": data.get('longitude',None),
+            "ranking": (data.get('ranking_data', {}).get('ranking_string')
+                               if data.get('ranking_data') else None),
+            "rating": data.get('rating',None),
         }
 
     def get_place_images(self, place_id):

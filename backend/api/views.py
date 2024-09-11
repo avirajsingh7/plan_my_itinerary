@@ -6,10 +6,12 @@ from rest_framework.views import APIView
 from django.db import transaction
 from django.db.utils import IntegrityError
 
-from .serializers import UserSerializer, ItinerarySerializer, ItineraryRequestSerializer, ImageSerializer
-from .models import EmailVerificationToken, Itinerary, LocationDetails, Activity, Image
+from .serializers import (
+    UserSerializer, ItinerarySerializer, ItineraryRequestSerializer,
+    ImageSerializer, ActivitySerializer, LocationDetailsSerializer
+)
+from .models import EmailVerificationToken, Itinerary, LocationDetails, Image, Activity
 from .services import EmailService, gemini_client, trip_advisor_client
-
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -81,7 +83,6 @@ class GenerateItineraryView(APIView):
         
         itinerary = self._create_itinerary(request.user, serializer.validated_data)
         self._process_activities(itinerary, itinerary_data, serializer.validated_data['destination'])
-
         return self._create_response(itinerary)
 
     def _validate_request(self, data):
@@ -111,14 +112,18 @@ class GenerateItineraryView(APIView):
                 self._fetch_and_save_images(place_id)
 
     def _get_or_create_location(self, place_id):
-        location, created = LocationDetails.objects.get_or_create(id=place_id)
-        if created:
-            location_details = trip_advisor_client.get_place_details(place_id)
-            if location_details:
-                for key, value in location_details.items():
-                    setattr(location, key, value)
-                location.save()
-        return location
+        try:
+            return LocationDetails.objects.get(id=place_id)
+        except LocationDetails.DoesNotExist:
+            location_data = trip_advisor_client.get_place_details(place_id)
+            if location_data:
+                serializer = LocationDetailsSerializer(data=location_data)
+                if serializer.is_valid():
+                    return serializer.save()
+                else:
+                    raise Exception(serializer.errors)
+            else:
+                raise Exception(f"Could not fetch details for place_id: {place_id}")
 
     def _create_activity(self, itinerary, activity_data, location):
         Activity.objects.create(
@@ -131,7 +136,6 @@ class GenerateItineraryView(APIView):
         )
         
     def _fetch_and_save_images(self, place_id):
-
         if not Image.objects.filter(location_id=place_id).exists():
             images = trip_advisor_client.get_place_images(place_id)
             if images:
