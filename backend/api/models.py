@@ -8,9 +8,6 @@ class EmailVerificationToken(models.Model):
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"Verification token for {self.user.email}"
-
 
 class Itinerary(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -22,11 +19,10 @@ class Itinerary(models.Model):
     image_url = models.URLField(null=True, blank=True)
     name = models.CharField(max_length=255, null=True, blank=True)
 
-    def __str__(self):
-        return f"Itinerary {self.id} for {self.user}"
 
 # Activity model
 class Activity(models.Model):
+    name = models.CharField(max_length=255,null=True)
     itinerary = models.ForeignKey(Itinerary, on_delete=models.CASCADE)
     description = models.TextField()
     location = models.ForeignKey('LocationDetails', on_delete=models.CASCADE,null=True)
@@ -35,8 +31,6 @@ class Activity(models.Model):
     time_of_day = models.CharField(max_length=50)
     createdAt = models.DateTimeField(auto_now_add=True)
     
-    def __str__(self):
-        return self.description
 
 # LocationDetails model
 class LocationDetails(models.Model):
@@ -55,8 +49,6 @@ class LocationDetails(models.Model):
     rating = models.CharField(max_length=10, null=True, blank=True)
     createdAt = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return self.name
 
 # Images model
 class Image(models.Model):
@@ -67,6 +59,3 @@ class Image(models.Model):
     large = models.URLField(null=True)
     original = models.URLField(null=True)
     createdAt = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.original

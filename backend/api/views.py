@@ -126,9 +126,13 @@ class GenerateItineraryView(APIView):
                 location = self._get_or_create_location(place_id)
                 self._create_activity(itinerary, activity, place_id)
                 images = self._fetch_and_save_images(place_id)
+                print("images in view")
+                print(images)
                 if images and not itinerary.image_url:
-                    itinerary.image_url = images[0].get('original')
-                    itinerary.save()
+                    for image in images:
+                        itinerary.image_url = image.original
+                        itinerary.save()
+                        break
 
     def _get_or_create_location(self, place_id):
         try:
@@ -146,6 +150,7 @@ class GenerateItineraryView(APIView):
 
     def _create_activity(self, itinerary, activity_data, place_id):
         activity_data = {
+            'name': activity_data['place_name'],
             'itinerary': itinerary.id,
             'description': activity_data['description'],
             'location': place_id,
@@ -161,7 +166,7 @@ class GenerateItineraryView(APIView):
 
     def _fetch_and_save_images(self, place_id):
         try:
-            return Image.objects.get(location_id=place_id)
+            return Image.objects.filter(location_id=place_id)
         except Image.DoesNotExist:
             images = trip_advisor_client.get_place_images(place_id)
             if images:
