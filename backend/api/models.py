@@ -3,12 +3,14 @@ from django.contrib.auth.models import User
 import uuid
 
 
+# Model for email verification tokens
 class EmailVerificationToken(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+# Model for user itineraries
 class Itinerary(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     start_date = models.DateField()
@@ -20,37 +22,37 @@ class Itinerary(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)
 
 
-# Activity model
+# Model for activities within an itinerary
 class Activity(models.Model):
-    name = models.CharField(max_length=255,null=True)
+    name = models.CharField(max_length=255, null=True)
     itinerary = models.ForeignKey(Itinerary, on_delete=models.CASCADE)
     description = models.TextField()
-    location = models.ForeignKey('LocationDetails', on_delete=models.CASCADE,null=True)
+    location = models.ForeignKey('LocationDetails', on_delete=models.CASCADE, null=True)
     duration = models.CharField(max_length=50)
     day = models.CharField(max_length=50)
     time_of_day = models.CharField(max_length=50)
     createdAt = models.DateTimeField(auto_now_add=True)
     
 
-# LocationDetails model
+# Model for storing details about locations
 class LocationDetails(models.Model):
     id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=255)
     street1 = models.CharField(max_length=255, null=True, blank=True)
     street2 = models.CharField(max_length=255, null=True, blank=True)
-    city = models.CharField(max_length=255,null=True, blank=True)
-    state = models.CharField(max_length=255,null=True, blank=True)
-    country = models.CharField(max_length=255,null=True, blank=True)
-    postalcode = models.CharField(max_length=50,null=True, blank=True)
+    city = models.CharField(max_length=255, null=True, blank=True)
+    state = models.CharField(max_length=255, null=True, blank=True)
+    country = models.CharField(max_length=255, null=True, blank=True)
+    postalcode = models.CharField(max_length=50, null=True, blank=True)
     address_string = models.TextField(null=True, blank=True)
     latitude = models.CharField(max_length=50, null=True, blank=True)
-    longitude = models.CharField(max_length=50,null=True, blank=True)
+    longitude = models.CharField(max_length=50, null=True, blank=True)
     ranking = models.CharField(max_length=50, null=True, blank=True)
     rating = models.CharField(max_length=10, null=True, blank=True)
     createdAt = models.DateTimeField(auto_now_add=True)
 
 
-# Images model
+# Model for storing images associated with locations
 class Image(models.Model):
     location = models.ForeignKey(LocationDetails, on_delete=models.CASCADE)
     thumbnail = models.URLField(null=True)

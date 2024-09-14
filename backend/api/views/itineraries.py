@@ -1,80 +1,37 @@
 from django.contrib.auth.models import User
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from django.db import transaction
-from django.db.utils import IntegrityError
+from rest_framework.request import Request
+from typing import Dict, Any, List, Optional
 
-from .serializers import (
-    UserSerializer, ItinerarySerializer, ItineraryRequestSerializer,
-    ImageSerializer, ActivitySerializer, LocationDetailsSerializer,
+from ..serializers import (
+    ItinerarySerializer,
+    ItineraryRequestSerializer,
+    ImageSerializer,
+    ActivitySerializer,
+    LocationDetailsSerializer,
     ItineraryResponseSerializer
 )
-from .models import EmailVerificationToken, Itinerary, LocationDetails, Image
-from .services import email_service, gemini_client, trip_advisor_client
-
-
-class CreateUserView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [AllowAny]
-
-    def create(self, request, *args, **kwargs):
-        try:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            user = serializer.save()
-            
-            # Create and save the verification token
-            token = EmailVerificationToken.objects.create(user=user)
-            
-            # Send verification email
-            email_service.send_verification_email(user.email, token.token)
-            
-            headers = self.get_success_headers(serializer.data)
-            response_data = {
-                **serializer.data,
-                "message": "Registration successful. Please check your email to verify your account."
-            }
-            return Response(response_data, status=status.HTTP_201_CREATED, headers=headers)
-        except IntegrityError as e:
-            if 'unique constraint' in str(e).lower():
-                return Response({"message": "A user with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({"message": "An error occurred while creating the user. Enter valid email and password."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class UserProfileView(APIView):
-    def get(self, request):
-        try:
-            user = request.user
-            serializer = UserSerializer(user)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class VerifyEmailView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, token):
-        try:
-            verification_token = EmailVerificationToken.objects.get(token=token)
-            user = verification_token.user
-            user.is_active = True
-            user.save()
-            verification_token.delete()
-            return Response({"message": "Email successfully verified."}, status=status.HTTP_200_OK)
-        except EmailVerificationToken.DoesNotExist:
-            return Response({"message": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+from ..models import Itinerary, LocationDetails, Image
+from ..services import gemini_client, trip_advisor_client
 
 
 class GenerateItineraryView(APIView):
+    """View for generating and saving itineraries."""
+
     @transaction.atomic
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        """
+        Generate and save an itinerary based on user input.
+
+        Args:
+            request: The HTTP request object containing itinerary parameters.
+
+        Returns:
+            Response: HTTP response with generated itinerary data or error message.
+        """
         serializer = self._validate_request(request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -88,17 +45,20 @@ class GenerateItineraryView(APIView):
         self._process_activities(itinerary, itinerary_data, serializer.validated_data['destination'])
         return self._create_response(itinerary)
 
-    def _validate_request(self, data):
+    def _validate_request(self, data: Dict[str, Any]) -> ItineraryRequestSerializer:
+        """Validate the incoming request data."""
         return ItineraryRequestSerializer(data=data)
 
-    def _generate_itinerary(self, validated_data):
+    def _generate_itinerary(self, validated_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Generate itinerary data using the Gemini API client."""
         return gemini_client.get_places_to_visit(
             validated_data['destination'],
             validated_data['num_of_days'],
             validated_data['must_includes']
         )
 
-    def _create_itinerary(self, user, validated_data):
+    def _create_itinerary(self, user: User, validated_data: Dict[str, Any]) -> Itinerary:
+        """Create and save a new Itinerary instance."""
         itinerary_data = {
             'user': user.id,
             'start_date': validated_data['start_date'],
@@ -119,22 +79,22 @@ class GenerateItineraryView(APIView):
         else:
             raise Exception(serializer.errors)
 
-    def _process_activities(self, itinerary, itinerary_data, destination):
+    def _process_activities(self, itinerary: Itinerary, itinerary_data: Dict[str, Any], destination: str) -> None:
+        """Process and save activities for the itinerary."""
         for activity in itinerary_data['itinerary']:
             place_id = trip_advisor_client.get_tourist_place_id(activity['place_name'], destination)
             if place_id:
-                location = self._get_or_create_location(place_id)
+                self._get_or_create_location(place_id)
                 self._create_activity(itinerary, activity, place_id)
                 images = self._fetch_and_save_images(place_id)
-                print("images in view")
-                print(images)
                 if images and not itinerary.image_url:
                     for image in images:
                         itinerary.image_url = image.original
                         itinerary.save()
                         break
 
-    def _get_or_create_location(self, place_id):
+    def _get_or_create_location(self, place_id: str) -> LocationDetails:
+        """Get or create a LocationDetails instance for the given place_id."""
         try:
             return LocationDetails.objects.get(id=place_id)
         except LocationDetails.DoesNotExist:
@@ -148,12 +108,13 @@ class GenerateItineraryView(APIView):
             else:
                 raise Exception(f"Could not fetch details for place_id: {place_id}")
 
-    def _create_activity(self, itinerary, activity_data, place_id):
+    def _create_activity(self, itinerary: Itinerary, activity_data: Dict[str, Any], place_id: str) -> ActivitySerializer:
+        """Create and save an Activity instance."""
         activity_data = {
             'name': activity_data['place_name'],
             'itinerary': itinerary.id,
             'description': activity_data['description'],
-            'location': place_id,
+            'location': int(place_id),
             'duration': activity_data['duration'],
             'day': activity_data['day_number'],
             'time_of_day': activity_data['time_of_day']
@@ -164,7 +125,8 @@ class GenerateItineraryView(APIView):
         else:
             raise Exception(serializer.errors)
 
-    def _fetch_and_save_images(self, place_id):
+    def _fetch_and_save_images(self, place_id: str) -> Optional[List[ImageSerializer]]:
+        """Fetch and save images for a given place_id."""
         try:
             return Image.objects.filter(location_id=place_id)
         except Image.DoesNotExist:
@@ -178,7 +140,8 @@ class GenerateItineraryView(APIView):
                     raise Exception(serializer.errors)
         return None
 
-    def _create_response(self, itinerary):
+    def _create_response(self, itinerary: Itinerary) -> Response:
+        """Create the HTTP response for the generated itinerary."""
         itinerary_serializer = ItineraryResponseSerializer(itinerary)
         return Response({
             "message": "Itinerary created and saved successfully!",
@@ -187,7 +150,18 @@ class GenerateItineraryView(APIView):
 
 
 class RecentItinerariesView(APIView):
-    def get(self, request):
+    """View for retrieving recent itineraries for a user."""
+
+    def get(self, request: Request) -> Response:
+        """
+        Retrieve recent itineraries for the authenticated user.
+
+        Args:
+            request: The HTTP request object.
+
+        Returns:
+            Response: HTTP response with recent itineraries data or error message.
+        """
         try:
             num_of_itinerary = request.data.get('num_of_itinerary', 4)
             try:
@@ -209,7 +183,19 @@ class RecentItinerariesView(APIView):
 
 
 class ItineraryDetailView(APIView):
-    def get(self, request, itinerary_id):
+    """View for retrieving details of a specific itinerary."""
+
+    def get(self, request: Request, itinerary_id: int) -> Response:
+        """
+        Retrieve details for a specific itinerary.
+
+        Args:
+            request: The HTTP request object.
+            itinerary_id (int): The ID of the itinerary to retrieve.
+
+        Returns:
+            Response: HTTP response with itinerary details or error message.
+        """
         try:
             itinerary = Itinerary.objects.get(id=itinerary_id)
             serializer = ItineraryResponseSerializer(itinerary)
