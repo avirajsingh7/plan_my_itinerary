@@ -19,7 +19,15 @@ from ..services import gemini_client, trip_advisor_client
 
 
 class GenerateItineraryView(APIView):
-    """View for generating and saving itineraries."""
+    """
+    View for generating and saving itineraries.
+    
+    Terms:
+    - Itinerary: Represents the overall trip plan, which includes multiple activities..
+    - Activity: A single activity in the itinerary, like visiting a place at a specific time.
+    - Location: A place visited during the trip.
+    - Image: Photo of a location.
+    """
 
     @transaction.atomic
     def post(self, request: Request) -> Response:
@@ -32,44 +40,46 @@ class GenerateItineraryView(APIView):
         Returns:
             Response: HTTP response with generated itinerary data or error message.
         """
-        serializer = self._validate_request(request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        validated_request = self._validate_request(request.data)
+        if not validated_request.is_valid():
+            return Response(validated_request.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        itinerary_data = self._generate_itinerary(serializer.validated_data)
+        itinerary_params = validated_request.validated_data
+        # This is where the itinerary is generated
+        generated_itinerary = self._generate_itinerary(itinerary_params)
         
-        if itinerary_data is None:
+        if generated_itinerary is None:
             return Response({"message": "Failed to generate itinerary"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        itinerary = self._create_itinerary(request.user, serializer.validated_data)
-        self._process_activities(itinerary, itinerary_data, serializer.validated_data['destination'])
-        return self._create_response(itinerary)
+        created_itinerary = self._create_itinerary(request.user, itinerary_params)
+        self._process_activities(created_itinerary, generated_itinerary, itinerary_params['destination'])
+        return self._create_response(created_itinerary)
 
-    def _validate_request(self, data: Dict[str, Any]) -> ItineraryRequestSerializer:
+    def _validate_request(self, request_data: Dict[str, Any]) -> ItineraryRequestSerializer:
         """Validate the incoming request data."""
-        return ItineraryRequestSerializer(data=data)
+        return ItineraryRequestSerializer(data=request_data)
 
-    def _generate_itinerary(self, validated_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _generate_itinerary(self, itinerary_params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Generate itinerary data using the Gemini API client."""
         return gemini_client.get_places_to_visit(
-            validated_data['destination'],
-            validated_data['num_of_days'],
-            validated_data['must_includes']
+            itinerary_params['destination'],
+            itinerary_params['num_of_days'],
+            itinerary_params['must_includes']
         )
 
-    def _create_itinerary(self, user: User, validated_data: Dict[str, Any]) -> Itinerary:
+    def _create_itinerary(self, user: User, itinerary_params: Dict[str, Any]) -> Itinerary:
         """Create and save a new Itinerary instance."""
         itinerary_data = {
             'user': user.id,
-            'start_date': validated_data['start_date'],
-            'end_date': validated_data['end_date'],
-            'total_days': validated_data['num_of_days'],
-            'destination': validated_data['destination'],
+            'start_date': itinerary_params['start_date'],
+            'end_date': itinerary_params['end_date'],
+            'total_days': itinerary_params['num_of_days'],
+            'destination': itinerary_params['destination'],
             'image_url': None,
             'name': (
-                validated_data['destination'].split(',')[0] +
+                itinerary_params['destination'].split(',')[0] +
                 ' Itinerary for ' +
-                str(validated_data['num_of_days']) +
+                str(itinerary_params['num_of_days']) +
                 ' days'
             )
         }
@@ -79,9 +89,9 @@ class GenerateItineraryView(APIView):
         else:
             raise Exception(serializer.errors)
 
-    def _process_activities(self, itinerary: Itinerary, itinerary_data: Dict[str, Any], destination: str) -> None:
+    def _process_activities(self, itinerary: Itinerary, generated_itinerary: Dict[str, Any], destination: str) -> None:
         """Process and save activities for the itinerary."""
-        for activity in itinerary_data['itinerary']:
+        for activity in generated_itinerary['itinerary']:
             place_id = trip_advisor_client.get_tourist_place_id(activity['place_name'], destination)
             if place_id:
                 self._get_or_create_location(place_id)
@@ -89,7 +99,7 @@ class GenerateItineraryView(APIView):
                 images = self._fetch_and_save_images(place_id)
                 if images and not itinerary.image_url:
                     for image in images:
-                        itinerary.image_url = image.original
+                        itinerary.image_url = image['original']
                         itinerary.save()
                         break
 
@@ -125,19 +135,26 @@ class GenerateItineraryView(APIView):
         else:
             raise Exception(serializer.errors)
 
-    def _fetch_and_save_images(self, place_id: str) -> Optional[List[ImageSerializer]]:
+    def _fetch_and_save_images(self, place_id: str) -> Optional[List[Dict[str, Any]]]:
         """Fetch and save images for a given place_id."""
-        try:
-            return Image.objects.filter(location_id=place_id)
-        except Image.DoesNotExist:
-            images = trip_advisor_client.get_place_images(place_id)
-            if images:
-                serializer = ImageSerializer(data=images, many=True)
-                if serializer.is_valid():
-                    serializer.save()
-                    return images
-                else:
-                    raise Exception(serializer.errors)
+        # Try to get the images from the database
+        existing_images = Image.objects.filter(location_id=place_id)
+        if existing_images.exists():
+            # Return the serialized images if found
+            return ImageSerializer(existing_images, many=True).data
+
+        # Fetch images from TripAdvisor if not in the database
+        images = trip_advisor_client.get_place_images(place_id)
+        if images:
+            # Serialize and save the fetched images
+            serializer = ImageSerializer(data=images, many=True)
+            if serializer.is_valid():
+                serializer.save()  # Save the images to the database
+                return serializer.data  # Return the serialized data
+            else:
+                # Raise an exception if the data is invalid
+                raise Exception(serializer.errors)
+
         return None
 
     def _create_response(self, itinerary: Itinerary) -> Response:
