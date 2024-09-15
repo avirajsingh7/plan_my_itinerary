@@ -7,7 +7,7 @@ const totalDays = (start, end) => {
   const endDate = new Date(end);
 
   const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
-  const roundedDaysDiff = Math.round(daysDiff);
+  const roundedDaysDiff = Math.round(daysDiff)+1;
 
   return roundedDaysDiff;
 };
