@@ -1,4 +1,5 @@
 import { Chrono } from "react-chrono";
+import Logo from "../assets/logo.png";
 
 export default function Timeline({ activities }) {
   return (
@@ -14,18 +15,36 @@ export default function Timeline({ activities }) {
                 return {
                   title: activity.time_of_day.toUpperCase(),
                   cardTitle: activity.name,
-                  cardSubtitle: `${activity.place_details.city}, ${activity.place_details.state} - ${activity.duration}`,
-                  cardDetailedText: activity.description,
+                  cardSubtitle: `${activity.place_details.ranking}`,
+                  cardDetailedText: [
+                    `<div>`,
+                    `Duration: <strong>${activity.duration}</strong>`,
+                    `${activity.description}`,
+                    `<strong>${activity.place_details.address_string}</strong>`,
+                    `</div>`,
+                  ],
+
+                  media: {
+                    name: `${activity.name}`,
+                    type: "IMAGE",
+                    source: {
+                      url: activity.place_images[0]?.original || Logo,
+                    },
+                  },
                 };
               })}
               mode="VERTICAL_ALTERNATING"
-              focusActiveItemOnLoad
               highlightCardsOnHover
+              parseDetailsAsHTML
               disableToolbar
               theme={{
-                primary: "#5eead4",
-                secondary: "#f9f9f9",
-                cardBgColor: "#f9f9f9",
+                primary: "#11756e",
+                secondary: "#fff",
+                titleColor: "#11756e",
+                titleColorActive: "#11756e",
+                cardSubtitleColor: "#11756e",
+                cardTitleColor: "#11756e",
+                cardDetailsColor: "#11756e",
               }}
             />
           </div>

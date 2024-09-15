@@ -1,9 +1,25 @@
+import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
+import { useItinerary } from "../contexts/ItineraryContext";
 import { formatDate } from "../services/dateFormat";
+import { handleRecent } from "../services/search";
 
 export default function Card({ itinerary }) {
+  const { setItinerary } = useItinerary();
+  const navigate = useNavigate();
+  const handleClick = () => {
+    handleRecent(itinerary.id)
+      .then((resp) => resp.json())
+      .then((data) => {
+        setItinerary(data.data);
+        navigate("/timeline");
+      });
+  };
+
   return (
-    <div className="w-4/5 h-52 mx-auto bg-white shadow-md shadow-teal-200 rounded-xl  m-6 flex transition-transform duration-300 ease-in-out  hover:scale-[1.01] hover:shadow-lg border-2 border-teal-400">
+    <div
+      className="w-4/5 h-52 mx-auto bg-white shadow-md shadow-teal-200 rounded-xl  m-6 flex transition-transform duration-300 ease-in-out  hover:scale-[1.01] hover:shadow-lg border-2 border-teal-400"
+      onClick={() => handleClick(itinerary.id)}>
       <img
         className="w-1/3 h-auto object-cover rounded"
         src={itinerary.image_url || logo}

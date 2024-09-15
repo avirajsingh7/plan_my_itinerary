@@ -5,7 +5,7 @@ import PrivateRoutes from "./components/PrivateRoutes.jsx";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import ItineraryProvider from "./contexts/ItineraryContext.jsx";
 import "./index.css";
-import { LandingPage, LoginPage, SignupPage, TimelinePage } from "./pages";
+import { LandingPage, LoginPage, SignupPage, TimelinePage, VerificationPage } from "./pages";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -17,6 +17,7 @@ createRoot(document.getElementById("root")).render(
               <Route path="/" element={<LandingPage />} />
               <Route path="timeline" element={<TimelinePage />} />
             </Route>
+            <Route path="api/user/verify-email/:token/" element={<VerificationPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignupPage />} />
           </Routes>

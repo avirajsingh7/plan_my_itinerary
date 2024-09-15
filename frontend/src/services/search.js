@@ -40,3 +40,20 @@ export default async function handleSearch(event, selectedTag) {
 
   return res;
 }
+
+export async function handleRecent(id) {
+  const token = Cookies.get("access_token");
+
+  const resp = await fetch(`${conf.apiUrl}/itinerary/${id}/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!resp.ok)
+    throw new Error({ message: "Cannot proceed with the query. try again" });
+
+  return resp;
+}

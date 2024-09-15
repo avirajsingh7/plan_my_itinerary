@@ -69,6 +69,20 @@ class User {
     }
   }
 
+  async verify(id) {
+    
+   const resp = await fetch(conf.apiUrl + `/user/verify-email/${id}/`, {
+   method: "Get",
+   headers: {
+    "Content-Type": "application/json",
+   },
+  }
+  )
+   if(!resp.ok) throw new Error("Cannot verify at the moment");
+
+   return true;
+  }
+  
   async recents(token) {
     try {
       const resp = await fetch(conf.apiUrl + "/itinerary/recent/", {
