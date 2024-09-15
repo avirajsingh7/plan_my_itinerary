@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+import dj_database_url
 
 
 load_dotenv()
@@ -96,7 +97,6 @@ WSGI_APPLICATION = 'planmyitinerary.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -107,6 +107,11 @@ DATABASES = {
         "PORT": os.getenv('POSTGRES_PORT'),
     }
 }
+
+if os.getenv('PRODUCTION') == "True":
+    DATABASES['default'] = dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+    )
 
 
 # Password validation
