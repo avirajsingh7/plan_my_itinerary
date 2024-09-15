@@ -85,7 +85,7 @@ class ItinerarySerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Itinerary
-        fields = ['user', 'start_date', 'end_date', 'total_days', 'destination', 'image_url', 'name']
+        fields = ['id', 'start_date', 'end_date', 'total_days', 'destination', 'image_url', 'name']
 
 
 class ActivityResponseSerializer(serializers.ModelSerializer):
