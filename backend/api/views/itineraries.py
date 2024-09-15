@@ -180,7 +180,7 @@ class RecentItinerariesView(APIView):
             Response: HTTP response with recent itineraries data or error message.
         """
         try:
-            num_of_itinerary = request.data.get('num_of_itinerary', 4)
+            num_of_itinerary = request.query_params.get('num_of_itinerary', 5)
             try:
                 num_of_itinerary = int(num_of_itinerary)
                 if num_of_itinerary <= 0:
