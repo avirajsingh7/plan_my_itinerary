@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import User, Itinerary, Activity, LocationDetails, Image
 from collections import defaultdict
 from typing import Dict, List, Any
+from django.utils import timezone
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -51,6 +52,15 @@ class ItineraryRequestSerializer(serializers.Serializer):
     start_date = serializers.DateField(format='%Y-%m-%d')
     end_date = serializers.DateField(format='%Y-%m-%d')
 
+    def validate(self, data):
+        if data['end_date'] <= data['start_date']:
+            raise serializers.ValidationError("End date must be after start date.")
+        if data['num_of_days'] != (data['end_date'] - data['start_date']).days + 1:
+            raise serializers.ValidationError("Number of days must match the difference between start and end date.")
+        if data['start_date'] < timezone.now().date():
+            raise serializers.ValidationError("Start date cannot be in the past.")
+        return data
+    
 
 class LocationDetailsSerializer(serializers.ModelSerializer):
     """
@@ -85,7 +95,7 @@ class ItinerarySerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Itinerary
-        fields = ['id', 'start_date', 'end_date', 'total_days', 'destination', 'image_url', 'name']
+        fields = ['id', 'user', 'start_date', 'end_date', 'total_days', 'destination', 'image_url', 'name']
 
 
 class ActivityResponseSerializer(serializers.ModelSerializer):
