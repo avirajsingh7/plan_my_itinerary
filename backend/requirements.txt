@@ -10,3 +10,6 @@ PyJWT
 pytz
 sqlparse
 psycopg2-binary
+gunicorn
+dj-database-url
+whitenoise
