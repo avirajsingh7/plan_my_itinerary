@@ -1,1 +1,2 @@
- web: gunicorn a_core.wsgi
+web: gunicorn planmyitinerary.wsgi --log-file -
+worker : celery -A planmyitinerary worker --loglevel=info
