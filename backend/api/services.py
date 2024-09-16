@@ -243,7 +243,7 @@ class EmailService:
         msg['To'] = email_to
         msg['Subject'] = "Email Verification for PlanMyItinerary"
 
-        verification_link = f"{settings.FRONTEND_URL}/api/user/verify-email/{token}"
+        verification_link = f"{settings.BACKEND_URL}/api/user/verify-email/{token}/"
         body = f'Click the link below to verify your email:\n\n{verification_link}'
         msg.attach(MIMEText(body, 'plain'))
 
