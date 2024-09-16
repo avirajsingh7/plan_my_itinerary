@@ -15,12 +15,12 @@ export default function Timeline({ activities }) {
                 return {
                   title: activity.time_of_day.toUpperCase(),
                   cardTitle: activity.name,
-                  cardSubtitle: `${activity.place_details.ranking}`,
+                  cardSubtitle: `${activity.place_details.ranking ? activity.place_details.ranking : ""}`,
                   cardDetailedText: [
                     `<div>`,
                     `Duration: <strong>${activity.duration}</strong>`,
                     `${activity.description}`,
-                    `<strong>${activity.place_details.address_string}</strong>`,
+                    `<strong>${ activity.place_details.address_string ? activity.place_details.address_string : ""}</strong>`,
                     `</div>`,
                   ],
 

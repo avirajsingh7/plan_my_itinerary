@@ -72,13 +72,14 @@ class User {
   async verify(id) {
     
    const resp = await fetch(conf.apiUrl + `/user/verify-email/${id}/`, {
-   method: "Get",
+   method: "GET",
    headers: {
     "Content-Type": "application/json",
    },
   }
   )
-   if(!resp.ok) throw new Error("Cannot verify at the moment");
+
+  if(!resp.ok) throw new Error("Cannot verify at the moment");
 
    return true;
   }
